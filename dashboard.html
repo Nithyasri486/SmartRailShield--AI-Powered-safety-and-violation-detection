@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartRailShield Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">🚆</div>
+        <h1>SmartRailShield</h1>
+        <p class="subtitle">Integrated Railway Safety & Monitoring System</p>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Camera Usage Info Banner -->
+        <div class="info-banner">
+            <div class="info-icon">💡</div>
+            <div class="info-content">
+                <strong>Camera Usage Tip:</strong> These modules use camera for detection. 
+                <span style="color: #ff6b6b; font-weight: bold;">Stop one module before starting another</span>, 
+                or use different camera sources in settings. 
+                <a href="CAMERA_GUIDE.md" target="_blank" style="color: #4dabf7; text-decoration: underline;">Read Guide</a>
+            </div>
+        </div>
+        
+        <div class="modules-grid">
+            
+            <!-- Machine Fault Detection Module -->
+            <div class="module-card fault" data-module="fault" onclick="launchModule('fault')">
+                <div class="module-icon">🔧</div>
+                <div class="module-content">
+                    <h2>Machine Fault Detection</h2>
+                    <p>AI-powered predictive maintenance system to detect and diagnose railway machine faults before they cause failures.</p>
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span>Ready to Launch</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Drowsiness Detection Module -->
+            <div class="module-card drowsiness" data-module="drowsiness" onclick="launchModule('drowsiness')">
+                <div class="module-icon">👁️</div>
+                <div class="module-content">
+                    <h2>Pilot Drowsiness Detection</h2>
+                    <p>Real-time monitoring system using computer vision to detect driver fatigue and prevent accidents.</p>
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span>Ready to Launch</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Obstacle Detection Module -->
+            <div class="module-card obstacle" data-module="obstacle" onclick="launchModule('obstacle')">
+                <div class="module-icon">🚧</div>
+                <div class="module-content">
+                    <h2>Obstacle Detection</h2>
+                    <p>YOLO-based real-time object detection system to identify obstacles on railway tracks and ensure safe passage.</p>
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span>Ready to Launch</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ANPR Module -->
+            <div class="module-card anpr" data-module="anpr" onclick="launchModule('anpr')">
+                <div class="module-icon">🚦</div>
+                <div class="module-content">
+                    <h2>License Plate Recognition</h2>
+                    <p>Automated Number Plate Recognition (ANPR) for level crossing monitoring and vehicle identification.</p>
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span>Ready to Launch</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>SmartRailShield v1.0 | Railway Safety Innovation</p>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
