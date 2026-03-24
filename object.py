@@ -1,4 +1,3 @@
-import cv2
 import torch
 import torch.nn as nn
 import os
@@ -15,101 +14,82 @@ except Exception:
     pass
 
 from ultralytics import YOLO
-import time
+import cv2
 
-# Secondary fix: allow ultralytics globals
-try:
-    from ultralytics.nn.tasks import DetectionModel
-    if hasattr(torch.serialization, 'add_safe_globals'):
-        torch.serialization.add_safe_globals([DetectionModel])
-except Exception:
-    pass
 
 class ObstacleDetector:
-    def __init__(self, model_path="best.pt", conf_threshold=0.5):
-        print("🚀 Loading YOLO model for obstacle detection...")
+    def __init__(self, model_path="best.pt", camera_index=0):
+        # Load YOLO model - make path relative to this script
+        if not os.path.isabs(model_path):
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            model_path = os.path.join(script_dir, model_path)
         self.model = YOLO(model_path)
-        self.conf_threshold = conf_threshold
-        print("✅ YOLO model loaded successfully.")
 
-        self.last_detected_time = 0
-        self.detected_objects = []
+        # Initialize camera (DirectShow for Windows)
+        self.cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
+        if not self.cap.isOpened():
+            raise RuntimeError("Cannot open webcam. Check camera index or permissions.")
 
-    def detect_obstacles(self, frame):
+    def get_obstacles(self, current_location={"lat": 0.0, "lon": 0.0}, show_frame=True):
         """
-        Detect obstacles in a frame using YOLO.
-        Returns list of detected objects.
+        Detect obstacles from webcam and return list with lat/lon & class.
+        Returns: obstacles list, quit_flag (True if 'q' pressed)
         """
-        results = self.model(frame, verbose=False)
-        detections = []
+        ret, frame = self.cap.read()
+        if not ret:
+            print("Failed to grab frame from camera")
+            return [], False
 
-        for r in results:
-            boxes = r.boxes
-            for box in boxes:
-                conf = float(box.conf[0])
-                if conf < self.conf_threshold:
-                    continue
+        obstacles = []
 
-                x1, y1, x2, y2 = map(int, box.xyxy[0])
-                cls_id = int(box.cls[0])
-                label = self.model.names[cls_id]
+        # Run YOLO prediction
+        results = self.model.predict(frame, conf=0.5, verbose=False)
 
-                detections.append({
-                    "label": label,
-                    "confidence": conf,
-                    "bbox": (x1, y1, x2, y2)
-                })
+        for result in results:
+            for box in result.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+                cls = int(box.cls[0])
+                class_name = self.model.names.get(cls, "Unknown")
 
-        self.detected_objects = detections
-        self.last_detected_time = time.time()
-        return detections
+                # Draw bounding box and label
+                if show_frame:
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                    cv2.putText(frame, class_name, (x1, y1 - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
-    def draw_detections(self, frame, detections):
-        """
-        Draw bounding boxes and labels on frame.
-        """
-        for det in detections:
-            x1, y1, x2, y2 = det["bbox"]
-            label = det["label"]
-            conf = det["confidence"]
+                # Approximate lat/lon near the loco
+                center_x = (x1 + x2) / 2
+                center_y = (y1 + y2) / 2
+                obs_lat = current_location["lat"] + (center_y / 100000)
+                obs_lon = current_location["lon"] + (center_x / 100000)
 
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-            cv2.putText(frame, f"{label} {conf:.2f}",
-                        (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6, (0, 0, 255), 2)
+                obstacles.append({"lat": obs_lat, "lon": obs_lon, "class": class_name})
 
-        return frame
+        # Show live frame if enabled (disabled cv2.imshow - use Streamlit version instead)
+        quit_flag = False
+        # Note: cv2.imshow doesn't work on Windows without GUI support
+        # Use obstacle_streamlit.py for visual display
 
-    def run_live(self, source=0):
-        """
-        Run obstacle detection live using webcam.
-        Press 'q' to quit.
-        """
-        cap = cv2.VideoCapture(source)
+        return obstacles, quit_flag
 
-        if not cap.isOpened():
-            print("❌ Unable to open video source")
-            return
-
-        print("🎥 Obstacle detection started. Press 'q' to quit.")
-
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                break
-
-            detections = self.detect_obstacles(frame)
-            frame = self.draw_detections(frame, detections)
-
-            cv2.imshow("🚧 SmartRail Shield - Obstacle Detection", frame)
-
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-
-        cap.release()
+    def release(self):
+        """Release camera safely."""
+        if self.cap.isOpened():
+            self.cap.release()
         cv2.destroyAllWindows()
 
 
+# ---------------- Standalone test -----------------
 if __name__ == "__main__":
-    detector = ObstacleDetector(model_path="best.pt", conf_threshold=0.5)
-    detector.run_live(0)
+    detector = ObstacleDetector("best.pt")
+    current_location = {"lat": 0.0, "lon": 0.0}
+
+    try:
+        while True:
+            obstacles, quit_flag = detector.get_obstacles(current_location, show_frame=True)
+            if quit_flag:
+                break
+            for obs in obstacles:
+                print(f"Detected {obs['class']} at lat:{obs['lat']:.6f}, lon:{obs['lon']:.6f}")
+    finally:
+        detector.release()
